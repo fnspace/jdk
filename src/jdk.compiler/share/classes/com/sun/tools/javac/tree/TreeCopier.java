@@ -488,7 +488,8 @@ public class TreeCopier<P> implements TreeVisitor<JCTree,P> {
         JCTypeParameter t = (JCTypeParameter) node;
         List<JCAnnotation> annos = copy(t.annotations, p);
         List<JCExpression> bounds = copy(t.bounds, p);
-        return M.at(t.pos).TypeParameter(t.name, bounds, annos);
+        List<JCTypeParameter> params = copy(t.params, p);
+        return M.at(t.pos).TypeParameter(t.name, bounds, annos, params);
     }
 
     @DefinedBy(Api.COMPILER_TREE)

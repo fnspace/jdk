@@ -318,6 +318,15 @@ public class JavacParser implements Parser {
         token = S.token();
     }
 
+    private Token split() {
+        token = S.split();
+        return token;
+    }
+
+    private boolean isTokenKindOneOf(TokenKind... kinds) {
+        return Arrays.stream(kinds).anyMatch(k -> token.kind == k);
+    }
+
     protected boolean peekToken(Predicate<TokenKind> tk) {
         return peekToken(0, tk);
     }
@@ -509,6 +518,7 @@ public class JavacParser implements Parser {
         if (token.kind == tk) {
             nextToken();
         } else {
+            System.out.println("ANOTHER " + token.kind);
             setErrorEndPos(token.pos);
             reportSyntaxError(S.prevToken().endPos, errorProvider.apply(tk));
         }
@@ -5017,7 +5027,13 @@ public class JavacParser implements Parser {
                 nextToken();
                 typarams.append(typeParameter());
             }
-            accept(GT);
+
+            if (isTokenKindOneOf(GTGTGT, GTGT)) {
+                split();
+            } else {
+                accept(GT);
+            }
+
             return typarams.toList();
         } else {
             return List.nil();
@@ -5035,6 +5051,7 @@ public class JavacParser implements Parser {
         int pos = token.pos;
         List<JCAnnotation> annos = typeAnnotationsOpt();
         Name name = typeName();
+        List<JCTypeParameter> params = typeParametersOpt(false);
         ListBuffer<JCExpression> bounds = new ListBuffer<>();
         if (token.kind == EXTENDS) {
             nextToken();
@@ -5044,7 +5061,7 @@ public class JavacParser implements Parser {
                 bounds.append(parseType());
             }
         }
-        return toP(F.at(pos).TypeParameter(name, bounds.toList(), annos));
+        return toP(F.at(pos).TypeParameter(name, bounds.toList(), annos, params));
     }
 
     /** FormalParameters = "(" [ FormalParameterList ] ")"

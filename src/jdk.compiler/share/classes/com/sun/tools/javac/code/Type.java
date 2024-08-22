@@ -1663,31 +1663,52 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
          */
         public Type lower;
 
+        /** Nested params of this type variables
+         */
+        public List<TypeVar> params;
+
+
         @SuppressWarnings("this-escape")
         public TypeVar(Name name, Symbol owner, Type lower) {
             super(null, List.nil());
             Assert.checkNonNull(lower);
-            tsym = new TypeVariableSymbol(0, name, this, owner);
+            this.tsym = new TypeVariableSymbol(0, name, this, owner);
             this.setUpperBound(null);
             this.lower = lower;
+            this.params = List.nil();
+        }
+
+        @SuppressWarnings("this-escape")
+        public TypeVar(Name name, Symbol owner, Type lower, List<TypeVar> params) {
+            super(null, List.nil());
+            Assert.checkNonNull(lower);
+            this.tsym = new TypeVariableSymbol(0, name, this, owner);
+            this.setUpperBound(null);
+            this.lower = lower;
+            this.params = params;
         }
 
         public TypeVar(TypeSymbol tsym, Type bound, Type lower) {
-            this(tsym, bound, lower, List.nil());
+            this(tsym, bound, lower, List.nil(), List.nil());
+        }
+
+        public TypeVar(TypeSymbol tsym, Type bound, Type lower, List<TypeVar> params) {
+            this(tsym, bound, lower, List.nil(), params);
         }
 
         @SuppressWarnings("this-escape")
         public TypeVar(TypeSymbol tsym, Type bound, Type lower,
-                       List<TypeMetadata> metadata) {
+                       List<TypeMetadata> metadata, List<TypeVar> params) {
             super(tsym, metadata);
             Assert.checkNonNull(lower);
             this.setUpperBound(bound);
             this.lower = lower;
+            this.params = params;
         }
 
         @Override
         protected TypeVar cloneWithMetadata(List<TypeMetadata> md) {
-            return new TypeVar(tsym, getUpperBound(), lower, md) {
+            return new TypeVar(tsym, getUpperBound(), lower, md, params) {
                 @Override
                 public Type baseType() { return TypeVar.this.baseType(); }
 
@@ -1743,6 +1764,13 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         public <R, P> R accept(TypeVisitor<R, P> v, P p) {
             return v.visitTypeVariable(this, p);
         }
+
+        // TODO[Roman]: delete after testing?
+        @Override
+        public String toString() {
+            final String base = super.toString();
+            return params.nonEmpty() ? base + "<" + params + ">" : base;
+        }
     }
 
     /** A captured type variable comes from wildcards which can have
@@ -1771,7 +1799,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
                             Type lower,
                             WildcardType wildcard,
                             List<TypeMetadata> metadata) {
-            super(tsym, bound, lower, metadata);
+            super(tsym, bound, lower, metadata, List.nil()); // TODO
             this.wildcard = wildcard;
         }
 

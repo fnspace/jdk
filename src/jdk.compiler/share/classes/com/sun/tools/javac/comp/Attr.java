@@ -25,9 +25,14 @@
 
 package com.sun.tools.javac.comp;
 
+import java.io.FileWriter;
+import java.io.IOException;
+import java.time.Instant;
 import java.util.*;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import javax.lang.model.element.ElementKind;
@@ -227,12 +232,21 @@ public class Attr extends JCTree.Visitor {
                final Type found,
                final KindSelector ownkind,
                final ResultInfo resultInfo) {
+
         InferenceContext inferenceContext = resultInfo.checkContext.inferenceContext();
         Type owntype;
         boolean shouldCheck = !found.hasTag(ERROR) &&
                 !resultInfo.pt.hasTag(METHOD) &&
                 !resultInfo.pt.hasTag(FORALL);
         if (shouldCheck && !ownkind.subset(resultInfo.pkind)) {
+            logInfo(
+                 "unexpected-type",
+                 tree.toString(),
+                 found.toString(),
+                    ownkind.toString(),
+                    resultInfo.toString()
+            );
+
             log.error(tree.pos(),
                       Errors.UnexpectedType(resultInfo.pkind.kindNames(),
                                             ownkind.kindNames()));
@@ -798,11 +812,9 @@ public class Attr extends JCTree.Visitor {
             TypeVar a = (TypeVar)tvar.type;
             a.tsym.flags_field |= UNATTRIBUTED;
             a.setUpperBound(Type.noType);
-            if (!tvar.bounds.isEmpty()) {
-                List<Type> bounds = List.of(attribType(tvar.bounds.head, env));
-                for (JCExpression bound : tvar.bounds.tail)
-                    bounds = bounds.prepend(attribType(bound, env));
-                types.setBounds(a, bounds.reverse());
+            if (tvar.bounds.nonEmpty()) { // TODO[Roman]: bounds for nested generics
+                List<Type> bounds = tvar.bounds.map(bound -> attribType(bound, env));
+                types.setBounds(a, bounds);
             } else {
                 // if no bounds are given, assume a single bound of
                 // java.lang.Object.
@@ -810,7 +822,7 @@ public class Attr extends JCTree.Visitor {
             }
             a.tsym.flags_field &= ~UNATTRIBUTED;
         }
-        if (checkCyclic) {
+        if (checkCyclic) { // TODO[Roman]: checkCyclic for nested generics
             for (JCTypeParameter tvar : typarams) {
                 chk.checkNonCyclic(tvar.pos(), (TypeVar)tvar.type);
             }
@@ -5054,9 +5066,36 @@ public class Attr extends JCTree.Visitor {
                 actuals = formals;
 
             if (actuals.length() == formals.length()) {
+
+                List<TypeVar> formalTypeVars = List.convert(TypeVar.class, formals);
+
+                final Predicate<TypeVar> isTypeConstructor = typeVar -> typeVar.params.nonEmpty();
+
+                final BiFunction<TypeVar, Type, Boolean> checkKinds = (typeVar, type) -> {
+
+                    if (isTypeConstructor.test(typeVar)) {
+                        final Type classType = chk.checkClassType(tree.clazz.pos(), type);
+
+                        classType.getTypeArguments();
+                    }
+
+                    return null;
+                };
+
+                if (clazztype.tsym.name.toString().equals("Bar1") || clazztype.tsym.name.toString().equals("Foo1")) {
+                    logInfo(
+                            clazztype.tsym.name.toString(),
+                            "Actual " + actuals.head,
+                            "Actual class name" + actuals.head.getClass().getName()
+                    );
+                }
+
                 List<Type> a = actuals;
-                List<Type> f = formals;
+                List<TypeVar> f = formalTypeVars;
                 while (a.nonEmpty()) {
+                    TypeVar formal = f.head;
+                    Type actual = a.head;
+
                     a.head = a.head.withTypeVar(f.head);
                     a = a.tail;
                     f = f.tail;
@@ -5082,7 +5121,7 @@ public class Attr extends JCTree.Visitor {
                 owntype = new ClassType(clazzOuter, actuals, clazztype.tsym,
                                         clazztype.getMetadata());
             } else {
-                if (formals.length() != 0) {
+                if (formals.nonEmpty()) {
                     log.error(tree.pos(),
                               Errors.WrongNumberTypeArgs(Integer.toString(formals.length())));
                 } else {
@@ -6099,4 +6138,17 @@ public class Attr extends JCTree.Visitor {
         }.scan(pid);
     }
 
+    static void logInfo(String name, String... msg) {
+        Instant now = Instant.now();
+        try (
+            FileWriter writer = new FileWriter("/Users/roman/Documents/personal/code/fnspace/jdk/jdk/test-" + name + "-" + now.getEpochSecond() + ".txt")
+        ) {
+            for (String s : msg) {
+                writer.write(s + "\n");
+            }
+            writer.flush();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

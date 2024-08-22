@@ -1599,6 +1599,7 @@ public class Pretty extends JCTree.Visitor {
                 this.printTypeAnnotations(tree.annotations);
             }
             print(tree.name);
+            printTypeParameters(tree.getTypeParameters());
             if (tree.bounds.nonEmpty()) {
                 print(" extends ");
                 printExprs(tree.bounds, " & ");

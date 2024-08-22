@@ -566,9 +566,11 @@ public class Enter extends JCTree.Visitor {
      */
     @Override
     public void visitTypeParameter(JCTypeParameter tree) {
+        List<TypeVar> params = List.convert(TypeVar.class, classEnter(tree.params, env));
+
         TypeVar a = (tree.type != null)
             ? (TypeVar)tree.type
-            : new TypeVar(tree.name, env.info.scope.owner, syms.botType);
+            : new TypeVar(tree.name, env.info.scope.owner, syms.botType, params);
         tree.type = a;
         if (chk.checkUnique(tree.pos(), a.tsym, env.info.scope)) {
             env.info.scope.enter(a.tsym);

@@ -3325,7 +3325,7 @@ public class Types {
      * elements of the longer list.
      */
     public Type subst(Type t, List<Type> from, List<Type> to) {
-        return t.map(new Subst(from, to));
+            return t.map(new Subst(from, to));
     }
 
     private class Subst extends StructuralTypeMapping<Void> {
@@ -3434,7 +3434,7 @@ public class Types {
         // create new type variables without bounds
         for (Type t : tvars) {
             newTvars.append(new TypeVar(t.tsym, null, syms.botType,
-                                        t.getMetadata()));
+                                        t.getMetadata(), List.nil())); // TODO[Roman] - type parameters
         }
         // the new bounds should use the new type variables in place
         // of the old
@@ -3461,7 +3461,7 @@ public class Types {
         else {
             // create new type variable without bounds
             TypeVar tv = new TypeVar(t.tsym, null, syms.botType,
-                                     t.getMetadata());
+                                     t.getMetadata(), t.params);
             // the new bound should use the new type variable in place
             // of the old
             tv.setUpperBound( subst(bound1, List.of(t), List.of(tv)) );
@@ -3504,7 +3504,7 @@ public class Types {
         private static final TypeMapping<Void> newInstanceFun = new TypeMapping<Void>() {
             @Override
             public TypeVar visitTypeVar(TypeVar t, Void _unused) {
-                return new TypeVar(t.tsym, t.getUpperBound(), t.getLowerBound(), t.getMetadata());
+                return new TypeVar(t.tsym, t.getUpperBound(), t.getLowerBound(), t.getMetadata(), t.params);
             }
         };
     // </editor-fold>

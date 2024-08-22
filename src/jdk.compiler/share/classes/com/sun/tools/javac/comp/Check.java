@@ -25,13 +25,11 @@
 
 package com.sun.tools.javac.comp;
 
+import java.io.FileWriter;
+import java.io.IOException;
+import java.time.Instant;
 import java.util.*;
-import java.util.function.BiConsumer;
-import java.util.function.BiPredicate;
-import java.util.function.Consumer;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
-import java.util.function.ToIntBiFunction;
+import java.util.function.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -1101,6 +1099,54 @@ public class Check {
     public boolean checkValidGenericType(Type t) {
         return firstIncompatibleTypeArg(t) == null;
     }
+// TODO[Roman] - remove
+    static void logInfo(String name, String... msg) {
+        Instant now = Instant.now();
+        try (
+                FileWriter writer = new FileWriter("/Users/roman/Documents/personal/code/fnspace/jdk/jdk/test-" + name + "-" + now.getEpochSecond() + ".txt")
+        ) {
+            for (String s : msg) {
+                writer.write(s + "\n");
+            }
+            writer.flush();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    static class NaturalNumber1 {
+
+        private int i;
+
+        public NaturalNumber1(int i) { this.i = i; }
+        // ...
+    }
+
+    static class EvenNumber extends NaturalNumber1 {
+
+        public EvenNumber(int i) { super(i); }
+        // ...
+    }
+
+
+    java.util.List<EvenNumber> le = new ArrayList<>();
+    java.util.List<? extends NaturalNumber1> ln = le;
+
+    ln.get(0);  // compile-time error
+     ln.add(new NaturalNumber1(35));  // compile-time error
+
+
+    // A<B<C<?>>, X> -> List(3, 1)
+    // A<B<C<?>>, X<?>> -> List(3, 2)
+    private List<Integer> getArity(TypeVar typeVar) {
+        return typeVar.params.map(p -> 1 + getArity(p).stream().reduce(0, Integer::sum));
+    }
+
+    static class IncompatibilityCheckResult {
+        Type type;
+
+    }
+
     //WHERE
         private Type firstIncompatibleTypeArg(Type type) {
             List<Type> formals = type.tsym.type.allparams();
@@ -1109,6 +1155,22 @@ public class Check {
             List<Type> forms = type.tsym.type.getTypeArguments();
             ListBuffer<Type> bounds_buf = new ListBuffer<>();
 
+            if (type.tsym.name.toString().equals("Foo1") ||type.tsym.name.toString().equals("Bar1") ) {
+                logInfo(
+                        "firstIncompatibleTypeArg-"+type.tsym.name,
+                        "Type: " + type,
+                        "Type.class: " + type.getClass(),
+                        "Formals: " + formals,
+                        "Formals.class: " + formals.map(x -> x.getClass()),
+                        "Actuals: " + actuals,
+                        "Actuals.class: " + actuals.map(x -> x.getClass()),
+                        "Args: " + args,
+                        "Args.class: " + args.map(x -> x.getClass()),
+                        "Forms: " + forms,
+                        "Forms.class: " + forms.map(x -> x.getClass())
+                );
+            }
+
             // For matching pairs of actual argument types `a' and
             // formal type parameters with declared bound `b' ...
             while (args.nonEmpty() && forms.nonEmpty()) {
@@ -1116,7 +1178,38 @@ public class Check {
                 // bounds (for upper and lower bound
                 // calculations).  So we create new bounds where
                 // type-parameters are replaced with actuals argument types.
-                bounds_buf.append(types.subst(forms.head.getUpperBound(), formals, actuals));
+                final Type actual = args.head;
+                final TypeVar formal = (TypeVar) forms.head;
+
+                bounds_buf.append(types.subst(formal.getUpperBound(), formals, actuals));
+                bounds_buf.append(types.subst(formal.getLowerBound(), formals, actuals));
+
+
+//
+//                // A<B<C<?>>>
+//
+//                final Function<TypeVar, List<Integer>> getArity = (typeVar) -> {
+//                   typeVar.params.map(p -> {
+//                      return 1 + getArity.apply(p);
+//                   });
+//
+//                };
+//
+//                final BiFunction<TypeVar, Type, Optional<String>> checkArity = (formalParam, arg) -> {
+//                    if (formalParam.params.nonEmpty()) {
+//
+//                    }
+//
+//
+//                };
+//
+//
+//                if (formal.params.nonEmpty()) {
+//                    // type-constructor check
+//
+//                    type
+//                }
+
                 args = args.tail;
                 forms = forms.tail;
             }
@@ -1456,6 +1549,18 @@ public class Check {
                 List<Type> forms = tree.type.tsym.type.getTypeArguments();
 
                 Type incompatibleArg = firstIncompatibleTypeArg(tree.type);
+
+                if (
+                        tree.type.tsym.name.toString().equals("Foo1") ||
+                                tree.type.tsym.name.toString().equals("Bar1")
+                ) {
+                    logInfo(
+"tree-arguments-" + tree.type.tsym.name,
+                            tree.arguments.toString(),
+                            tree.arguments.map(x -> x.getClass()).toString()
+                    );
+                }
+
                 if (incompatibleArg != null) {
                     for (JCTree arg : tree.arguments) {
                         if (arg.type == incompatibleArg) {

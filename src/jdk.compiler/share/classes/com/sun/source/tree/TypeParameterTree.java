@@ -71,4 +71,6 @@ public interface TypeParameterTree extends Tree {
      * @since 1.8
      */
     List<? extends AnnotationTree> getAnnotations();
+
+    List<? extends TypeParameterTree> getTypeParameters();
 }

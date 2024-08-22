@@ -380,6 +380,7 @@ public class TreeScanner extends Visitor {
 
     public void visitTypeParameter(JCTypeParameter tree) {
         scan(tree.annotations);
+        scan(tree.params);
         scan(tree.bounds);
     }
 

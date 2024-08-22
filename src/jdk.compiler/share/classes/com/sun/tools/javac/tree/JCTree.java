@@ -2935,11 +2935,20 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         public List<JCExpression> bounds;
         /** type annotations on type parameter */
         public List<JCAnnotation> annotations;
+        /** type parameters of type constructor */
+        public List<JCTypeParameter> params;
+
         protected JCTypeParameter(Name name, List<JCExpression> bounds, List<JCAnnotation> annotations) {
+            this(name, bounds, annotations, List.nil());
+        }
+
+        protected JCTypeParameter(Name name, List<JCExpression> bounds, List<JCAnnotation> annotations, List<JCTypeParameter> params) {
             this.name = name;
             this.bounds = bounds;
             this.annotations = annotations;
+            this.params = params;
         }
+
         @Override
         public void accept(Visitor v) { v.visitTypeParameter(this); }
 
@@ -2955,6 +2964,11 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         public List<JCAnnotation> getAnnotations() {
             return annotations;
         }
+        @DefinedBy(Api.COMPILER_TREE)
+        public List<JCTypeParameter> getTypeParameters() {
+            return params;
+        }
+
         @Override @DefinedBy(Api.COMPILER_TREE)
         public <R,D> R accept(TreeVisitor<R,D> v, D d) {
             return v.visitTypeParameter(this, d);
@@ -2962,6 +2976,14 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         @Override
         public Tag getTag() {
             return TYPEPARAMETER;
+        }
+
+        public boolean isTypeConstructor() {
+            return params.nonEmpty();
+        }
+
+        public int getTypeConstructorArity() {
+            return params.size();
         }
     }
 

@@ -498,7 +498,7 @@ public class Infer {
             List<Type> upperBounds = uv.getBounds(InferenceBound.UPPER);
             if (Type.containsAny(upperBounds, vars)) {
                 TypeSymbol fresh_tvar = new TypeVariableSymbol(Flags.SYNTHETIC, uv.qtype.tsym.name, null, uv.qtype.tsym.owner);
-                fresh_tvar.type = new TypeVar(fresh_tvar, types.makeIntersectionType(uv.getBounds(InferenceBound.UPPER)), syms.botType);
+                fresh_tvar.type = new TypeVar(fresh_tvar, types.makeIntersectionType(uv.getBounds(InferenceBound.UPPER)), syms.botType, List.nil());
                 todo.append(uv);
                 uv.setInst(fresh_tvar.type);
             } else if (upperBounds.nonEmpty()) {
@@ -759,7 +759,7 @@ public class Infer {
                 Type lower = lowerBounds.isEmpty() ? syms.botType
                                                    : lowerBounds.tail.isEmpty() ? lowerBounds.head
                                                                                 : types.lub(lowerBounds);
-                TypeVar vt = new TypeVar(syms.noSymbol, upper, lower);
+                TypeVar vt = new TypeVar(syms.noSymbol, upper, lower, List.nil());
                 freshVars.add(vt);
                 undet.setInst(vt);
             }

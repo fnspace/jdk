@@ -1113,39 +1113,39 @@ public class Check {
             throw new RuntimeException(e);
         }
     }
-
-    static class NaturalNumber1 {
-
-        private int i;
-
-        public NaturalNumber1(int i) { this.i = i; }
-        // ...
-    }
-
-    static class EvenNumber extends NaturalNumber1 {
-
-        public EvenNumber(int i) { super(i); }
-        // ...
-    }
-
-
-    java.util.List<EvenNumber> le = new ArrayList<>();
-    java.util.List<? extends NaturalNumber1> ln = le;
-
-    ln.get(0);  // compile-time error
-     ln.add(new NaturalNumber1(35));  // compile-time error
-
-
-    // A<B<C<?>>, X> -> List(3, 1)
-    // A<B<C<?>>, X<?>> -> List(3, 2)
-    private List<Integer> getArity(TypeVar typeVar) {
-        return typeVar.params.map(p -> 1 + getArity(p).stream().reduce(0, Integer::sum));
-    }
-
-    static class IncompatibilityCheckResult {
-        Type type;
-
-    }
+//
+//    static class NaturalNumber1 {
+//
+//        private int i;
+//
+//        public NaturalNumber1(int i) { this.i = i; }
+//        // ...
+//    }
+//
+//    static class EvenNumber extends NaturalNumber1 {
+//
+//        public EvenNumber(int i) { super(i); }
+//        // ...
+//    }
+//
+//
+//    java.util.List<EvenNumber> le = new ArrayList<>();
+//    java.util.List<? extends NaturalNumber1> ln = le;
+//
+//    ln.get(0);  // compile-time error
+//     ln.add(new NaturalNumber1(35));  // compile-time error
+//
+//
+//    // A<B<C<?>>, X> -> List(3, 1)
+//    // A<B<C<?>>, X<?>> -> List(3, 2)
+//    private List<Integer> getArity(TypeVar typeVar) {
+//        return typeVar.params.map(p -> 1 + getArity(p).stream().reduce(0, Integer::sum));
+//    }
+//
+//    static class IncompatibilityCheckResult {
+//        Type type;
+//
+//    }
 
     //WHERE
         private Type firstIncompatibleTypeArg(Type type) {
@@ -1178,11 +1178,11 @@ public class Check {
                 // bounds (for upper and lower bound
                 // calculations).  So we create new bounds where
                 // type-parameters are replaced with actuals argument types.
-                final Type actual = args.head;
-                final TypeVar formal = (TypeVar) forms.head;
-
-                bounds_buf.append(types.subst(formal.getUpperBound(), formals, actuals));
-                bounds_buf.append(types.subst(formal.getLowerBound(), formals, actuals));
+//                final Type actual = args.head;
+//                final TypeVar formal = (TypeVar) forms.head;
+//
+//                bounds_buf.append(types.subst(formal.getUpperBound(), formals, actuals));
+//                bounds_buf.append(types.subst(formal.getLowerBound(), formals, actuals));
 
 
 //
@@ -1210,6 +1210,7 @@ public class Check {
 //                    type
 //                }
 
+                bounds_buf.append(types.subst(forms.head.getUpperBound(), formals, actuals));
                 args = args.tail;
                 forms = forms.tail;
             }

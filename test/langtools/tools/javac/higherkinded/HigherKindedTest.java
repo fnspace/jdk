@@ -135,7 +135,7 @@ public class HigherKindedTest {
 
         log.useSource(fo);
 
-        FileWriter writer = new FileWriter("/Users/roman/Documents/personal/code/fnspace/jdk/jdk/test-log.txt");
+        FileWriter writer = new FileWriter("/home/roman/Documents/personal/code/jdk/test-log.txt");
 
         CharSequence cs = fo.getCharContent(false);
         Parser parser = pfac.newParser(cs, false, false, false);

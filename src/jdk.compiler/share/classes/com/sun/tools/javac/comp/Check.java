@@ -1103,7 +1103,7 @@ public class Check {
     static void logInfo(String name, String... msg) {
         Instant now = Instant.now();
         try (
-                FileWriter writer = new FileWriter("/Users/roman/Documents/personal/code/fnspace/jdk/jdk/test-" + name + "-" + now.getEpochSecond() + ".txt")
+                FileWriter writer = new FileWriter("/home/roman/Documents/personal/code/jdk/test-" + name + "-" + now.getEpochSecond() + ".txt")
         ) {
             for (String s : msg) {
                 writer.write(s + "\n");
@@ -1113,39 +1113,6 @@ public class Check {
             throw new RuntimeException(e);
         }
     }
-//
-//    static class NaturalNumber1 {
-//
-//        private int i;
-//
-//        public NaturalNumber1(int i) { this.i = i; }
-//        // ...
-//    }
-//
-//    static class EvenNumber extends NaturalNumber1 {
-//
-//        public EvenNumber(int i) { super(i); }
-//        // ...
-//    }
-//
-//
-//    java.util.List<EvenNumber> le = new ArrayList<>();
-//    java.util.List<? extends NaturalNumber1> ln = le;
-//
-//    ln.get(0);  // compile-time error
-//     ln.add(new NaturalNumber1(35));  // compile-time error
-//
-//
-//    // A<B<C<?>>, X> -> List(3, 1)
-//    // A<B<C<?>>, X<?>> -> List(3, 2)
-//    private List<Integer> getArity(TypeVar typeVar) {
-//        return typeVar.params.map(p -> 1 + getArity(p).stream().reduce(0, Integer::sum));
-//    }
-//
-//    static class IncompatibilityCheckResult {
-//        Type type;
-//
-//    }
 
     //WHERE
         private Type firstIncompatibleTypeArg(Type type) {
@@ -1178,38 +1145,6 @@ public class Check {
                 // bounds (for upper and lower bound
                 // calculations).  So we create new bounds where
                 // type-parameters are replaced with actuals argument types.
-//                final Type actual = args.head;
-//                final TypeVar formal = (TypeVar) forms.head;
-//
-//                bounds_buf.append(types.subst(formal.getUpperBound(), formals, actuals));
-//                bounds_buf.append(types.subst(formal.getLowerBound(), formals, actuals));
-
-
-//
-//                // A<B<C<?>>>
-//
-//                final Function<TypeVar, List<Integer>> getArity = (typeVar) -> {
-//                   typeVar.params.map(p -> {
-//                      return 1 + getArity.apply(p);
-//                   });
-//
-//                };
-//
-//                final BiFunction<TypeVar, Type, Optional<String>> checkArity = (formalParam, arg) -> {
-//                    if (formalParam.params.nonEmpty()) {
-//
-//                    }
-//
-//
-//                };
-//
-//
-//                if (formal.params.nonEmpty()) {
-//                    // type-constructor check
-//
-//                    type
-//                }
-
                 bounds_buf.append(types.subst(forms.head.getUpperBound(), formals, actuals));
                 args = args.tail;
                 forms = forms.tail;

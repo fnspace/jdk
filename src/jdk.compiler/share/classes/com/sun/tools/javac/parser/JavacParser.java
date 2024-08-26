@@ -526,7 +526,6 @@ public class JavacParser implements Parser {
         if (token.kind == tk) {
             nextToken();
         } else {
-            System.out.println("ANOTHER " + token.kind);
             setErrorEndPos(token.pos);
             reportSyntaxError(S.prevToken().endPos, errorProvider.apply(tk));
         }

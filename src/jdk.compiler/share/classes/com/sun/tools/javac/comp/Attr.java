@@ -5057,34 +5057,10 @@ public class Attr extends JCTree.Visitor {
                 actuals = formals;
 
             if (actuals.length() == formals.length()) {
-
-                List<TypeVar> formalTypeVars = List.convert(TypeVar.class, formals);
-
-                final Predicate<TypeVar> isTypeConstructor = typeVar -> typeVar.params.nonEmpty();
-
-                final BiFunction<TypeVar, Type, Boolean> checkKinds = (typeVar, type) -> {
-
-                    if (isTypeConstructor.test(typeVar)) {
-                        final Type classType = chk.checkClassType(tree.clazz.pos(), type);
-
-                        classType.getTypeArguments();
-                    }
-
-                    return null;
-                };
-
-                if (clazztype.tsym.name.toString().equals("Bar1") || clazztype.tsym.name.toString().equals("Foo1")) {
-                    logInfo(
-                            clazztype.tsym.name.toString(),
-                            "Actual " + actuals.head,
-                            "Actual class name" + actuals.head.getClass().getName()
-                    );
-                }
-
                 List<Type> a = actuals;
-                List<TypeVar> f = formalTypeVars;
+                List<Type> f = formals;
                 while (a.nonEmpty()) {
-                    TypeVar formal = f.head;
+                    Type formal = f.head;
                     Type actual = a.head;
 
                     a.head = a.head.withTypeVar(f.head);
@@ -6165,7 +6141,7 @@ public class Attr extends JCTree.Visitor {
     static void logInfo(String name, String... msg) {
         Instant now = Instant.now();
         try (
-            FileWriter writer = new FileWriter("/Users/roman/Documents/personal/code/fnspace/jdk/jdk/test-" + name + "-" + now.getEpochSecond() + ".txt")
+            FileWriter writer = new FileWriter("/home/roman/Documents/personal/code/jdk/test-" + name + "-" + now.getEpochSecond() + ".txt")
         ) {
             for (String s : msg) {
                 writer.write(s + "\n");

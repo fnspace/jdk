@@ -84,6 +84,111 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.ElementKindVisitor14;
 
+sealed interface Incompatible {
+
+    final class IncompatibleTypeArg implements Incompatible {
+        private final Type typeArg;
+
+        IncompatibleTypeArg(final Type typeArg) {
+            this.typeArg = typeArg;
+        }
+
+        public Type typeArg() { return typeArg; }
+    }
+
+    final class TypeConstructorMismatch implements Incompatible {
+        private final TypeVar formal;
+        private final Type actual;
+
+        TypeConstructorMismatch(final TypeVar formal, final Type actual) {
+            this.formal = formal;
+            this.actual = actual;
+        }
+
+        public TypeVar formal() { return formal; }
+        public Type actual() { return actual; }
+    }
+
+    final class NotATypeConstructor implements Incompatible {
+        private final TypeVar formal;
+        private final Type actual;
+
+        NotATypeConstructor(final TypeVar formal, final Type actual) {
+            this.formal = formal;
+            this.actual = actual;
+        }
+
+        public TypeVar formal() { return formal; }
+        public Type actual() { return actual; }
+    }
+
+    static Incompatible typeArg(final Type typeArg) {
+        return new IncompatibleTypeArg(typeArg);
+    }
+
+    static Incompatible typeConstructorMismatch(final TypeVar formal, final Type actual) {
+        return new TypeConstructorMismatch(formal, actual);
+    }
+
+    static Incompatible notTypeConstructor(final TypeVar formal, final Type actual) {
+        return new NotATypeConstructor(formal, actual);
+    }
+}
+
+sealed interface ParamTree {
+    List<ParamTree> getParams();
+
+    static ParamTree leaf() { return ParamTreeLeaf.get(); }
+    static ParamTree node(final List<ParamTree> params) { return new ParamTreeNode(params); }
+}
+
+final class ParamTreeNode implements ParamTree {
+    private final List<ParamTree> params;
+
+    ParamTreeNode(final List<ParamTree> params) {
+        this.params = params;
+    }
+
+    public List<ParamTree> getParams() {
+        return params;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        ParamTreeNode that = (ParamTreeNode) o;
+        return Objects.equals(params, that.params);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(params);
+    }
+}
+
+final class ParamTreeLeaf implements ParamTree {
+    private static final ParamTreeLeaf INSTANCE = new ParamTreeLeaf();
+    private ParamTreeLeaf() {}
+
+    public List<ParamTree> getParams() {
+        return List.nil();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof ParamTreeLeaf;
+    }
+
+    @Override
+    public int hashCode() {
+        return super.hashCode();
+    }
+
+    public static ParamTreeLeaf get() { return INSTANCE; }
+}
+
+
 /** Type checking helper class for the attribution phase.
  *
  *  <p><b>This is NOT part of any supported API.
@@ -353,6 +458,7 @@ public class Check {
             log.error(pos, Errors.IllegalStartOfType);
             return syms.errType;
         }
+        if (found.toString().contains("F<C>")) throw new java.lang.Error("HERE");
         log.error(pos, Errors.TypeFoundReq(found, required));
         return types.createErrorType(found instanceof Type type ? type : syms.errType);
     }
@@ -623,7 +729,12 @@ public class Check {
         return checkType(pos, found, req, basicHandler);
     }
 
-    Type checkType(final DiagnosticPosition pos, final Type found, final Type req, final CheckContext checkContext) {
+    Type checkType(
+            final DiagnosticPosition pos,
+            final Type found,
+            final Type req,
+            final CheckContext checkContext
+    ) {
         final InferenceContext inferenceContext = checkContext.inferenceContext();
         if (inferenceContext.free(req) || inferenceContext.free(found)) {
             inferenceContext.addFreeTypeListener(List.of(req, found),
@@ -1010,13 +1121,49 @@ public class Check {
         return types.upward(t, types.captures(t)).baseType();
     }
 
-    Type checkMethod(final Type mtype,
+    private Incompatible checkTypeConstructor(final Type actual, final TypeVar formal) {
+        final List<TypeVar> typeConstructorFormalArgs = formal.params;
+        final boolean isTypeConstructorRequired = typeConstructorFormalArgs.nonEmpty();
+        final List<Type> actualTypeArguments = actual.getTypeArguments();
+        final List<TypeVar> actualClassFormalArgs = actual.tsym.type.getTypeArguments().map(TypeVar.class::cast);
+        final List<ParamTree> typeConstructorFormalArgsTree = typeConstructorFormalArgs.map(Check::getParamTree);
+        final List<ParamTree> actualClassFormalArgsTree = actualClassFormalArgs.map(Check::getParamTree);
+
+        // formal type is not a type constructor - nothing to check
+        if (!isTypeConstructorRequired)
+            return null;
+
+        // actual type is not a type constructor
+        if (actualClassFormalArgs.isEmpty())
+            return Incompatible.notTypeConstructor(formal, actual);
+
+        // type constructor is already applied
+        if (actualTypeArguments.nonEmpty())
+            return Incompatible.notTypeConstructor(formal, actual);
+
+        // check structure of type constructors
+        if (!typeConstructorFormalArgsTree.equals(actualClassFormalArgsTree))
+            return Incompatible.typeConstructorMismatch(formal, actual);
+
+        // type constructors match
+        return null;
+    }
+
+    private static ParamTree getParamTree(final TypeVar typeVar) {
+        return typeVar.params.isEmpty() ?
+                ParamTree.leaf() :
+                ParamTree.node(typeVar.params.map(Check::getParamTree));
+    }
+
+    Type checkMethod(
+            final Type mtype,
             final Symbol sym,
             final Env<AttrContext> env,
             final List<JCExpression> argtrees,
             final List<Type> argtypes,
             final boolean useVarargs,
-            InferenceContext inferenceContext) {
+            final InferenceContext inferenceContext
+    ) {
         // System.out.println("call   : " + env.tree);
         // System.out.println("method : " + owntype);
         // System.out.println("actuals: " + argtypes);
@@ -1115,28 +1262,22 @@ public class Check {
     }
 
     //WHERE
-        private Type firstIncompatibleTypeArg(Type type) {
+        private Incompatible firstIncompatibleTypeArg(Type type) {
             List<Type> formals = type.tsym.type.allparams();
             List<Type> actuals = type.allparams();
             List<Type> args = type.getTypeArguments();
             List<Type> forms = type.tsym.type.getTypeArguments();
             ListBuffer<Type> bounds_buf = new ListBuffer<>();
 
-            if (type.tsym.name.toString().equals("Foo1") ||type.tsym.name.toString().equals("Bar1") ) {
-                logInfo(
-                        "firstIncompatibleTypeArg-"+type.tsym.name,
-                        "Type: " + type,
-                        "Type.class: " + type.getClass(),
-                        "Formals: " + formals,
-                        "Formals.class: " + formals.map(x -> x.getClass()),
-                        "Actuals: " + actuals,
-                        "Actuals.class: " + actuals.map(x -> x.getClass()),
-                        "Args: " + args,
-                        "Args.class: " + args.map(x -> x.getClass()),
-                        "Forms: " + forms,
-                        "Forms.class: " + forms.map(x -> x.getClass())
-                );
+            while (args.nonEmpty() && forms.nonEmpty()) { // check type constructor arguments
+                Incompatible incompatible = checkTypeConstructor(args.head, (TypeVar) forms.head);
+                if (incompatible != null) return incompatible;
+                args = args.tail;
+                forms = forms.tail;
             }
+
+            args = type.getTypeArguments();
+            forms = type.tsym.type.getTypeArguments();
 
             // For matching pairs of actual argument types `a' and
             // formal type parameters with declared bound `b' ...
@@ -1169,7 +1310,7 @@ public class Check {
                 if (!isTypeArgErroneous(actual) &&
                         !bounds.head.isErroneous() &&
                         !checkExtends(actual, bounds.head)) {
-                    return args.head;
+                    return Incompatible.typeArg(args.head);
                 }
                 args = args.tail;
                 bounds = bounds.tail;
@@ -1183,7 +1324,7 @@ public class Check {
                         arg.getUpperBound().isErroneous() &&
                         !bounds.head.isErroneous() &&
                         !isTypeArgErroneous(args.head)) {
-                    return args.head;
+                    return Incompatible.typeArg(args.head);
                 }
                 bounds = bounds.tail;
                 args = args.tail;
@@ -1484,27 +1625,32 @@ public class Check {
                 List<JCExpression> args = tree.arguments;
                 List<Type> forms = tree.type.tsym.type.getTypeArguments();
 
-                Type incompatibleArg = firstIncompatibleTypeArg(tree.type);
-
-                if (
-                        tree.type.tsym.name.toString().equals("Foo1") ||
-                                tree.type.tsym.name.toString().equals("Bar1")
-                ) {
-                    logInfo(
-"tree-arguments-" + tree.type.tsym.name,
-                            tree.arguments.toString(),
-                            tree.arguments.map(x -> x.getClass()).toString()
-                    );
-                }
+                Incompatible incompatibleArg = firstIncompatibleTypeArg(tree.type);
 
                 if (incompatibleArg != null) {
-                    for (JCTree arg : tree.arguments) {
-                        if (arg.type == incompatibleArg) {
-                            log.error(arg, Errors.NotWithinBounds(incompatibleArg, forms.head));
+                    switch (incompatibleArg) {
+                        case Incompatible.IncompatibleTypeArg error -> {
+                            for (JCTree arg : tree.arguments) {
+                                if (arg.type == error.typeArg()) {
+                                    log.error(arg, Errors.NotWithinBounds(error.typeArg(), forms.head));
+                                }
+                                forms = forms.tail;
+                            }
                         }
-                        forms = forms.tail;
-                     }
-                 }
+                        case Incompatible.TypeConstructorMismatch error -> {
+                            tree.arguments.stream()
+                                    .filter(arg -> error.actual() == arg.type)
+                                    .findFirst()
+                                    .ifPresent(arg -> log.error(arg, Errors.TypecontructorMismatch(error.formal(), error.actual().tsym.type)));
+                        }
+                        case Incompatible.NotATypeConstructor error -> {
+                            tree.arguments.stream()
+                                    .filter(arg -> error.actual() == arg.type)
+                                    .findFirst()
+                                    .ifPresent(arg -> log.error(arg, Errors.TypecontructorUnexpected(error.formal(), error.actual())));
+                        }
+                    }
+                }
 
                 forms = tree.type.tsym.type.getTypeArguments();
 
@@ -1531,6 +1677,9 @@ public class Check {
 
         @Override
         public void visitTypeParameter(JCTypeParameter tree) {
+            if (tree.name.toString().equals("ASD")) {
+                logInfo(tree.name.toString(), tree.toString());
+            }
             validateTrees(tree.bounds, true, isOuter);
             checkClassBounds(tree.pos(), tree.type);
         }

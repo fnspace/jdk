@@ -98,109 +98,72 @@ public class HigherKindedTest {
         compFail(code, Optional.of(expectedErrMsg));
     }
 
-
-//    private static String compile(final Task.Expect expect, final String sources) throws IOException {
-//        return new JavacTask(toolbox)
-//                .sources(sources)
-//                .classpath(".")
-//                .options("-encoding", "utf8", "--enable-preview", "-source", JAVA_VERSION)
-//                .run(expect)
-//                .writeAll()
-//                .getOutput(Task.OutputKind.DIRECT);
-//    }
-//
-//    private static String compile(final String... sources) throws IOException {
-//        return compile(String.join("\n", sources) + "\n");
-//    }
-
-    static void run() throws Exception {
-
-        Context context = new Context();
-        Log log = Log.instance(context);
-
-        JavacFileManager.preRegister(context);
-        ParserFactory pfac = ParserFactory.instance(context);
-
-        final String text =
-                "public class Foo<A<C<X1>, D<B>, X>> {\n"
-                        + "  public static void main(String[] args) {\n"
-                        + " "
-                        + "}\n";
-        JavaFileObject fo = new SimpleJavaFileObject(URI.create("Foo"), JavaFileObject.Kind.SOURCE) {
-            @Override
-            public CharSequence getCharContent(boolean ignoreEncodingErrors) {
-                return text;
-            }
-        };
-
-        log.useSource(fo);
-
-        FileWriter writer = new FileWriter("/home/roman/Documents/personal/code/jdk/test-log.txt");
-
-        CharSequence cs = fo.getCharContent(false);
-        Parser parser = pfac.newParser(cs, false, false, false);
-        JCTree.JCCompilationUnit tree = parser.parseCompilationUnit();
-
-        tree.accept(new TreeScanner() {
-            @Override
-            public void visitClassDef(JCTree.JCClassDecl tree) {
-                super.visitClassDef(tree);
-
-                try {
-                    writer.write(tree.toString());
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-
-            @Override
-            public void visitTypeParameter(JCTree.JCTypeParameter tree) {
-                try {
-                    writer.write(tree.name + " " + tree.isTypeConstructor() + " " + tree.getTypeConstructorArity() + "\n");
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-                super.visitTypeParameter(tree);
-            }
-        });
-        writer.flush();
-    }
-
     public static void main(String[] args) throws Exception {
+        compPass("class Foo<Bar<A<B<C>>, D, FooBar<E>>> {}");
 
-        compPass("""
-            
-            class Bar1<A<B>> {
-              // int x = "asd";
-              // class A<X, D> {}
-              
-             // B<A<String, >>
-              
-              class Foo1<C<T<D>>> {}
-              
-              Bar1<Foo1> d = new Bar1<Foo1>();
-              
-              // void doSomething(A<String> xx) {}
-            }
-        """);
+        compPass(
+                """
+                    class Foo<C> {}
+                    class Bar<A<B>> {
+                      Bar<Foo> bar = new Bar<Foo>(); // TODO: handle diamond operator: new Bar1<>();
+                    }
+                """
+        );
 
-        compPass("""
-            class Foo<Bar<A<B<C>>, D, FooBar<E>>> {}
-        """);
+        compPass(
+                """
+                    class Foo<A, B> {}
+                    class Bar<A<B, C>> {
+                      Bar<Foo> bar = new Bar<Foo>();
+                    }
+                """
+        );
 
+        compFail(
+                """
+                    class Foo<A<A1>, B<B1>> {}
+                    class Bar<A<B, C>> {
+                      Bar<Foo> bar = new Bar<Foo>();
+                    }
+                """,
+                "type constructor mismatch: expected A<B,C> but got Foo<A<A1>,B<B1>>"
+        );
 
         compFail(
                 "class Foo<Bar<A>, FooBar<Bar>> {}",
                 "type variable Bar is already defined in class Foo"
         );
-//        compFail("""
-//            class Foo {}
-//            class Bar<A<B>> { static Bar<Foo> d = new Bar<>(); }
-//        """,
-//        "type Foo does not take parameters"
-//        );
-//
-//        run();
 
+        compFail(
+                """
+                    class Foo {}
+                    class Bar<A<B>> {
+                      Bar<Foo> bar = new Bar<Foo>();
+                    }
+                """,
+                "expected type constructor A<B> but got Foo"
+        );
+
+        compFail(
+                """
+                    class Foo<A, B> {}
+                    class Bar<A<B>> {
+                      Bar<Foo> bar = new Bar<Foo>();
+                    }
+                """,
+                "type constructor mismatch: expected A<B> but got Foo<A,B>"
+        );
+
+//        compPass(
+//                """
+//                    interface Function<A, B> {
+//                        B apply(A a);
+//                    }
+//
+//                    interface Functor<Asd<C>> {
+//                        <A, B> Asd<B> map(Asd<A> fa, Function<A, B> f);
+//                    }
+//                """
+//        );
     }
 }

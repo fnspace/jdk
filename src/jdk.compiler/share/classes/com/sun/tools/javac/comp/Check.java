@@ -458,7 +458,6 @@ public class Check {
             log.error(pos, Errors.IllegalStartOfType);
             return syms.errType;
         }
-        if (found.toString().contains("F<C>")) throw new java.lang.Error("HERE");
         log.error(pos, Errors.TypeFoundReq(found, required));
         return types.createErrorType(found instanceof Type type ? type : syms.errType);
     }
@@ -1677,9 +1676,6 @@ public class Check {
 
         @Override
         public void visitTypeParameter(JCTypeParameter tree) {
-            if (tree.name.toString().equals("ASD")) {
-                logInfo(tree.name.toString(), tree.toString());
-            }
             validateTrees(tree.bounds, true, isOuter);
             checkClassBounds(tree.pos(), tree.type);
         }
